@@ -1,0 +1,66 @@
+% Extract time and response data
+time1 = cascade_try{2}.Values.Time;  % Time values
+response1 = cascade_try{2}.Values.Data;  % Measured response
+ref1 = cascade_try{6}.Values.Data;  % Reference signal
+
+% Ensure data is column vectors
+time1 = time1(:);
+response1 = response1(:);
+ref1 = ref1(:);
+
+% Define the step positions and time durations
+% pos = [0, pi/2, pi, 3*pi/2]; % Step values
+time_durations = [2,2,2,4]; % Duration for each range
+
+% Define the range start times
+start_times = [0, cumsum(time_durations)]; % Cumulative sum gives range boundaries
+
+% Loop through each range and plot response and reference
+for i = 1:length(time_durations)
+    % Define the time range
+    t_start = start_times(i);
+    t_end = start_times(i + 1);
+    
+    % Find indices within this time range
+    idx_range = find((time1 >= t_start) & (time1 < t_end));
+    
+    % Check if valid data exists for this range
+    if isempty(idx_range)
+        fprintf('No data available for Range %d (%.2f to %.2f sec)\n', i, t_start, t_end);
+        continue; % Skip this iteration
+    end
+    
+    % Extract corresponding response and reference values
+    t_range = time1(idx_range);
+    response_range = response1(idx_range);
+    ref_range = ref1(idx_range);
+    
+    % Determine the initial and final values for stepinfo()
+    yinit = response_range(1); % Initial value of the response
+    yfinal = ref_range(end); % Final value of the reference (target value)
+    
+    % Compute step-response characteristics using stepinfo(y, t, yfinal, yinit)
+    step_info = stepinfo(response_range, t_range, yfinal, yinit);
+    
+    % Display step-response characteristics
+    fprintf('Step-Response Characteristics for Range %d (%.2f to %.2f sec):\n', i, t_start, t_end);
+    disp(step_info);
+    
+    % Plot the response and reference for this range
+    figure;
+    plot(t_range, response_range, 'r', 'LineWidth', 1.5); hold on;
+    plot(t_range, ref_range, 'b--', 'LineWidth', 1.5);
+    title(sprintf('Response and Reference: Range %d (%.2f to %.2f sec)', i, t_start, t_end));
+    xlabel('Time (s)');
+    ylabel('Response / Reference');
+    legend('Response', 'Reference');
+    grid on;
+end
+
+abs_error = abs(ref1 - response1);
+
+if all(abs_error < 4e-3)
+    disp('All values in abs_error are less than 4e-3.');
+else
+    disp('Some values in abs_error exceed 4e-3.');
+end
